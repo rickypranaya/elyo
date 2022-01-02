@@ -1,5 +1,5 @@
 import React, {useState, useEffect, useRef} from 'react';
-import { StyleSheet, Text, View, SafeAreaView, KeyboardAvoidingView, TextInput, ScrollView , Alert, TouchableOpacity} from 'react-native';
+import { StyleSheet, Text, View, SafeAreaView, KeyboardAvoidingView, TextInput, ScrollView , Alert, TouchableOpacity, ActivityIndicator} from 'react-native';
 import Constant from '../components/Constant';
 import { Icon } from 'react-native-elements';
 import * as Location from 'expo-location';
@@ -7,7 +7,11 @@ import DropDownPicker from 'react-native-dropdown-picker';
 import Modal from 'react-native-modal';
 import MainButton from '../components/MainButton';
 
-export default function Generate() {
+export default function Generate(props) {
+
+    //activity indicator
+    const [loading, setLoading] = useState(false)
+
     // const text = "28 Mohon diisi selengkap-lengkapnya ya kak Nama : yanti No telepon : 0818-0408-8452 NO WA : 0818-0408-8452 Kecamatan/Kota : pacitan Kelurahan/Desa : arjowinagun Kode pos :  Email (Jika ada) :  Alamat Lengkap (Jalan/RT/RW/No. Rumah): jln. Jendral Sudirman, rt.3 ,rw. 3, bakso rudal pak min samping indomaret Jumlah Order: paket super ampuh Pembayaran COD/TF: cod ongkir 43rb pot 30rb total cod 299+13=312.000"
     const [text, setText] = useState("")
     // const [no, setNo] = useState("")
@@ -493,7 +497,162 @@ export default function Generate() {
                 <Text style={{flex:1, paddingLeft:10, paddingRight:10}}>{item.name}</Text>
                 <Text>{formatRupiah(item.jual)}</Text>
             </TouchableOpacity>
-        )}
+    )}
+
+    const handleSimpan = async () =>{
+        if (nama == ''){
+            Alert.alert('masukkan nama pelanggan')
+        } else if (noTelepon == '') {
+            Alert.alert('masukkan no telepon pelanggan')
+        } else if (alamat == ''){
+            Alert.alert('masukkan alamat pelanggan')
+        } else if (totalPenjualan == 0){
+            Alert.alert('masukkan item penjualan')
+
+        } else if (valuePembayaran == '') {
+            Alert.alert('pilih metode pembayaran')
+        } else {
+            var date = new Date()
+            var created_at = require('moment')(date).format('YYYY-MM-DD');
+            setLoading(true)
+    
+            const URL = Constant.BASE_URL+"/count_packet";
+            try{
+                const response = await fetch(URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        created_at : created_at
+                       }),
+                    headers:{
+                        'Accept': 'application/json',
+                        "Content-Type" : "application/json"
+                    }
+                });
+    
+                if(response.status !=200){
+                    throw new Error("something is wrong!");
+    
+                } else {
+                    const responseData = await response.json();
+                    if (responseData.status != 200){
+                        console.log('failed')
+                        setLoading(false)
+    
+                    } else {
+                        var resData = responseData.data
+                        console.log('=---------hey----------=')
+                        var no 
+                        if (resData.length > 0 ){
+                            console.log(resData[0].no)
+                            no = resData[0].no + 1
+                        } else {
+                            no = 1
+                        }
+                        console.log(no)
+                        
+    
+                        let obj = {
+                            no : no,
+                            nama : nama,
+                            no_telpon : noTelepon,
+                            email : email,
+                            alamat : alamat,
+                            kota : kota,
+                            desa : desa,
+                            postcode : postcode,
+                            total_penjualan : totalPenjualan,
+                            ongkir : ongkir,
+                            subsidi : subsidi,
+                            total : Number(totalPenjualan) + Number(ongkir) - Number(subsidi),
+                            item : JSON.stringify(item),
+                            pembayaran : valuePembayaran,
+                            created_at : created_at,
+                            edited_at : created_at,
+                        }
+    
+    
+                        const URL2 = Constant.BASE_URL+"/transaction_add";
+                        try{
+                            const response = await fetch(URL2, {
+                                method: "POST",
+                                body: JSON.stringify(obj),
+                                headers:{
+                                    'Accept': 'application/json',
+                                    "Content-Type" : "application/json"
+                                }
+                            });
+                
+                            if(response.status !=200){
+                                throw new Error("something is wrong!");
+                
+                            } else {
+                                const responseData = await response.json();
+                                if (responseData.status != 200){
+                                    console.log('failed')
+                                    setLoading(false)
+    
+                                } else {
+                                    var resData = responseData.data
+                                    console.log(resData)
+                                                            
+                                    setText("")
+                                    setNama("")
+                                    setNoTelepon("")
+                                    // setNoWa("")
+                                    setKota("")
+                                    setDesa("")
+                                    setPostcode("")
+                                    setEmail("")
+                                    setAlamat("")
+    
+                                    setOngkirP("")
+                                    setOngkir(0)
+                                    setSubsidi(0)
+                                    setSubsidiP("")
+                                    setTotalPenjualan(0)
+    
+                                    setItem([])
+                                    setValuePembayaran('')
+                                    itemRef.current = []
+    
+                                    kotaRef.current = ""
+                                    desaRef.current = ""
+                                    postcodeRef.current = ""
+                                    alamatRef.current = ""
+                                    setLoading(false)
+
+                                    props.navigation.navigate(
+                                        {
+                                            name: 'Transaksi', 
+                                            params: {
+                                                date: new Date()
+                                                },
+                                        })
+    
+                                }
+                            }
+                        }catch(error){
+                            setLoading(false)
+                            Alert.alert('Tidak ada Koneksi Internet');
+                        }
+    
+                        
+                    }
+                }
+            }catch(error){
+                setLoading(false)
+                Alert.alert('Tidak ada Koneksi Internet');
+            }
+    
+    
+            // console.log(obj)
+    
+        }
+
+       
+
+    }
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -501,7 +660,7 @@ export default function Generate() {
         {/*===== COPY AND PASTE =====*/}
         <View style={{width:'100%',  flexDirection:'row', alignItems:'center', paddingHorizontal:20}}>
             <TextInput
-                // value = {quantity}
+                value = {text}
                 // keyboardType="number-pad"
                 placeholder= 'Copy dan Paste disini'
                 placeholderTextColor={Constant.GREY_PLACEHOLDER}
@@ -779,7 +938,7 @@ export default function Generate() {
         </View>
 
         <View style={{ alignItems:'center', paddingTop:5, paddingBottom:10}}>
-            <MainButton title='Simpan'  onPress={()=>{setItem([])}}/>
+            <MainButton title='Simpan'  onPress={handleSimpan}/>
         </View>
 
         </ScrollView>
@@ -928,6 +1087,15 @@ export default function Generate() {
                 </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* loading indicator */}
+            {loading &&
+            <View style={styles.loading}>
+                <View style={{backgroundColor:'white', borderRadius:10, padding:20}}>
+                    <ActivityIndicator size="small" color={Constant.PRIMARY_COLOR}/>
+                </View>
+            </View>
+            }
       
     </SafeAreaView>
   );
@@ -1072,5 +1240,13 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         paddingHorizontal: 16,
         marginTop:5,
+    },
+    loading: {
+        backgroundColor:'rgba(52, 52, 52, 0.8)', 
+        position: 'absolute', 
+        width:'100%', 
+        height:Constant.DEVICE_HEIGHT, 
+        justifyContent:'center', 
+        alignItems:'center'
     },
 });
